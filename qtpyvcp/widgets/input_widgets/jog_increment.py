@@ -18,18 +18,23 @@
 
 import os
 
-from qtpy.QtGui import QColor
-from qtpy.QtCore import Qt, Slot, Property
-from qtpy.QtWidgets import QWidget, QBoxLayout, QSizePolicy
-
-from qtpyvcp.utilities.info import Info
+from qtpy.QtCore import Property, Qt, Slot
+from qtpy.QtGui import QColor, QKeySequence
+from qtpy.QtWidgets import QBoxLayout, QShortcut, QSizePolicy, QWidget
 from qtpyvcp.actions.machine_actions import jog
 from qtpyvcp.plugins import getPlugin
+from qtpyvcp.utilities.info import Info
 from qtpyvcp.utilities.settings import getSetting, setSetting
 from qtpyvcp.widgets.button_widgets.led_button import LEDButton
 
 STATUS = getPlugin('status')
 INFO = Info()
+
+
+def iter_widgets(container):
+    count = container.count()
+    for idx in range(count):
+        yield container.itemAt(idx).widget()
 
 
 class JogIncrementWidget(QWidget):
@@ -49,6 +54,11 @@ class JogIncrementWidget(QWidget):
             return
 
         enable_default = True
+
+        self._next_shortcut = QShortcut(QKeySequence("I"), self)
+        self._next_shortcut.activated.connect(self.setNextIncrement)
+        self._prev_shortcut = QShortcut(QKeySequence('Shift+I'), self)
+        self._prev_shortcut.activated.connect(self.setPrevIncrement)
 
         increments = INFO.getIncrements()
         for increment in increments:
@@ -132,6 +142,18 @@ class JogIncrementWidget(QWidget):
     @Slot(int)
     def setLayoutSpacing(self, value):
         self._container.setSpacing(value)
+
+    def setNextIncrement(self, *args, **kw):
+        buttons = list(iter_widgets(self._container))
+        idx, selected = next((i, b) for i, b in enumerate(buttons) if b.isChecked())
+        next_idx = min(idx + 1, len(buttons) - 1)
+        self._container.itemAt(next_idx).widget().click()
+
+    def setPrevIncrement(self, *args, **kw):
+        buttons = list(iter_widgets(self._container))
+        idx, selected = next((i, b) for i, b in enumerate(buttons) if b.isChecked())
+        prev_idx = max(idx - 1, 0)
+        self._container.itemAt(prev_idx).widget().click()
 
     diameter = Property(int, getLedDiameter, setLedDiameter)
     color = Property(QColor, getLedColor, setLedColor)
